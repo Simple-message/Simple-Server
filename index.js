@@ -1,5 +1,4 @@
-console.log('Hello');
+const Server = require('./server/server.js').Server;
 
-
-
-  lewwt a = 'mmm';
+const port = process.env.PORT || 8000;
+const server = new Server(port);
