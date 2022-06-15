@@ -1,5 +1,7 @@
 create database simple_chat;
 
+use simple_chat;
+
 create table messages(
   id int not null primary key auto_increment,
   sender_id int not null,
@@ -13,3 +15,5 @@ create table users(
   name varchar(100),
   unique(name)
 );
+
+insert into users(name) values('Bender');
