@@ -7,7 +7,16 @@ class Database {
     this.details = details;
   }
 
-  async handleDbFunc(script) {
+  exec(query, params) {
+    return new Promise((resolve, reject) => {
+      this.con.query(query, params, (err, script) => {
+        if (err) reject(err);
+        else resolve(script);
+      });
+    });
+  }
+
+  async handleDbConnection(script) {
     this.con = await mysql.createConnection(this.details);
     return new Promise((resolve, reject) => {
       this.con.connect(async err => {
@@ -22,52 +31,45 @@ class Database {
     });
   }
 
-  exec(query) {
-    return new Promise((resolve, reject) => {
-      this.con.query(query, (err, script) => {
-        if (err) reject(err);
-        else resolve(script);
-      });
-    });
-  }
-
-  async addMessage(message) {
-    const [senderCode, senderId] = this.getUserId(message.senderName);
-    const [recieverCode, recieverId] = this.getUserId(message.recieverName);
-    if (senderCode == 500 || recieverCode == 500) return [500, null];
-
-    const sendTime = message.sendTime;
-    const messageText = message.messageText;
-    const addMessageSql = `
-      insert into messages(sender_id, reciever_id, send_time, messsage_text)
-      values(${senderId}, ${recieverId}, ${sendTime}, ${messageText});
-    `;
-
-    try {
-      const sqlResult = await this.exec(addMessageSql);
-      const insertId = sqlResult.insertId;
-      return [200, insertId];
-    } catch (err) {
-      console.log('file->database.js | function->addMessage | error-> ', err);
-      return [500, null];
-    }
-  }
-
-  async getUserId(name) {
-    return await this.handleDbFunc(async () => {
-      const getIdSql = `
-        select id from users
-        where name='${name}'
-      `;
+  async handleQuery(sql, params) {
+    return await this.handleDbConnection(async () => {
       try {
-        const name = await this.exec(getIdSql);
-        return [200, name];
+        const result = await this.exec(sql, params);
+        return [200, result];
       } catch (err) {
-        console.error('file->database.js | function->getUserId | error-> ', err);
+        console.error(err);
         return [500, null];
       }
     });
   }
+
+  async register(login) {
+    const params = [login];
+    const registerSql = `
+      insert into users(name) values (?)
+    `;
+    return await this.handleQuery(registerSql, params);
+  }
+
+  async getUserId(name) {
+    const params = [name];
+    const getIdSql = `
+      select id from users
+      where name=?
+    `;
+    return await this.handleQuery(getIdSql, params);
+  }
+
+  async sendMessage(messageText, timeSent, senderId, recieverId) {
+    const params = [senderId, recieverId, timeSent, messageText];
+    const insertMessageSql = `
+      insert into messages(sender_id, reciever_id, send_time, message_text) 
+      values (?, ?, ?, ?)
+    `;
+    return await this.handleQuery(insertMessageSql, params);
+  }
+
+
 
 
 }
