@@ -17,3 +17,5 @@ create table users(
 );
 
 insert into users(name) values('Bender');
+insert into messages(sender_id, reciever_id, send_time, message_text) values(1, 7, '2020-12-03', 'Hello! How are you?');
+insert into messages(sender_id, reciever_id, send_time, message_text) values(1, 8, '2020-12-04', 'Goodbye');

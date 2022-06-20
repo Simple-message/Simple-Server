@@ -35,10 +35,10 @@ class Database {
     return await this.handleDbConnection(async () => {
       try {
         const result = await this.exec(sql, params);
-        return [200, result];
+        return {code: 200, result};
       } catch (err) {
         console.error(err);
-        return [500, null];
+        return {code: 500, result: null};
       }
     });
   }
@@ -58,6 +58,34 @@ class Database {
       where name=?
     `;
     return await this.handleQuery(getIdSql, params);
+  }
+
+  async getChats(uid) {
+    const params = [uid];
+    const getChatsSql = `
+      select * 
+      from messages 
+      where id in (
+        select a.id as "id" 
+        from (
+          select reciever_id, max(id) as "id" 
+          from messages 
+          where sender_id = ?
+          group by reciever_id)
+        a )
+    `;
+    return await this.handleQuery(getChatsSql, params);
+  }
+
+  async getHistory(senderId, recieverId) {
+    const params = [senderId, recieverId, senderId, recieverId];
+    console.log(params);
+    const getHistorySql = `
+      select * from messages 
+      where sender_id in (?, ?) and reciever_id in (?, ?) 
+      order by send_time asc
+    `;
+    return await this.handleQuery(getHistorySql, params);
   }
 
   async sendMessage(messageText, timeSent, senderId, recieverId) {
