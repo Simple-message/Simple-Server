@@ -63,9 +63,11 @@ class Database {
   async getChats(uid) {
     const params = [uid];
     const getChatsSql = `
-      select * 
+      select * , users.name
       from messages 
-      where id in (
+      inner join users
+      on users.id = reciever_id
+      where messages.id in (
         select a.id as "id" 
         from (
           select reciever_id, max(id) as "id" 
