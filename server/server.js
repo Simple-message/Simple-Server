@@ -1,23 +1,21 @@
 'use strict';
 const http = require('http');
-const WebSocket = require('ws');
-// const io = require('socket.io');
 const utils = require('../utils.js');
 const getKeyByValue = utils.getKeyByValue;
+const getFormattedDate = utils.getFormattedDate;
+const getFormattedDateISO = utils.getFormattedDateISO;
 
-//also may use private fields?
 class Server {
   constructor(port) {
     const messageHandlers = {
       'login': (connection, data) => this.handleLoginMessage(connection, data),
       'messageToChat': (connection, data) => this.handleMessageToChat(connection, data), 
       'register': (connection, data) => this.register(connection, data), 
-      'getChats': (connection, data) => this.handleGetChats(connection, data), 
+      'getChats': (connection) => this.handleGetChats(connection), 
       'history': (connection, data) => this.getHistory(connection, data), 
     };
 
     const server = http.createServer();
-    server.on('request', this.handleRequest);
     server.listen(port, () => {
       console.log('Server running on ' + port + '...');
     });
@@ -29,6 +27,7 @@ class Server {
       for (const handlerType in messageHandlers) {
         socket.on(handlerType, mess => messageHandlers[handlerType](socket, mess));
       }
+      socket.on('disconnect', () => this.connectionClose(socket));
     });
 
     this.server = server;
@@ -40,47 +39,36 @@ class Server {
     this.database = database;
   }
 
-  handleRequest(req, res) {
-    console.log('should handle request?');
-  }
-
-  // connectionMessage(connection, message) {
-  //   console.log(message);
-  //   const messageObject = JSON.parse(message);
-  //   const messageType = messageObject.type;
-  //   console.log(messageType);
-  //   const messageHandler = this.messageHandlers[messageType];
-  //   if (messageHandler) messageHandler(connection, messageObject.data)
-  // }
-
   connectionClose(connectionClosed) {
-    const connections = this.connections;
-    const uids = Object.keys(this.connections);
-    const closedUid = getKeyByValue(connectionClosed);
-    for (const uid in uids) {
-      const connection = connections[uid];
-      if (connection == connectionClosed) delete this.connections[uid];
-      else connection.send(JSON.stringify({type: 'toOffline', data: {closedUid}}));
-    }
+    const socketClosedId = connectionClosed.id;
+    delete this.connections[socketClosedId];
+    console.log("close " + socketClosedId);
   }
 
   async handleLoginMessage(connection, login) {
-    const result = await this.database.getUserId(login); //may add password
+    const result = await this.database.getUserId(login);
     let uid = null;
     const code = result.code;
     const resSql = result.result;
     if (resSql.length > 0) {
       uid = resSql[0].id;
       if (code == 200 && uid) {
-        const existsUid = getKeyByValue(connection);
-        if (existsUid) delete this.connections[uid];
-        this.connections[uid] = connection;
+        const socketId = connection.id;
+        this.connections[socketId] = uid;
       }
     }
     connection.emit("login", JSON.stringify({code, uid}));
   }
 
-  async handleGetChats(connection, uid) {
+  async handleGetChats(connection) {
+    const socketId = connection.id;
+    console.log('handleGetChats', this.connections);
+    const uid = this.connections[socketId];
+    if (!uid) {
+      const resultAnauthorized = {code: 401, message: 'Anauthorized'};
+      connection.emit("chats", JSON.stringify(resultAnauthorized));
+      return;
+    }
     const result = await this.database.getChats(uid);
     console.log(result);
     connection.emit("chats", JSON.stringify(result));
@@ -93,28 +81,48 @@ class Server {
     const resSql = result.result;
     const uid = resSql.insertId;
     if (code == 200 && uid) {
-      const existsUid = getKeyByValue(connection);
-      if (existsUid) delete this.connections[uid];
-      this.connections[uid] = connection;
+      const socketId = connection.id;
+      this.connections[socketId] = uid;
     }
     connection.send(JSON.stringify(result));
   }
 
-  async handleMessageToChat(connection, data) {
+  async handleMessageToChat(connection, jsonData) {
+    // const socketId = connection.id;
+    // const senderId = this.connections[socketId];
+    // if (!senderId) {
+    //   const resultAnauthorized = {code: 401, message: 'Anauthorized'};
+    //   connection.emit('messageToChat', JSON.stringify(resultAnauthorized));
+    //   return;
+    // }
+    const data = JSON.parse(jsonData);
     const messageText = data.text;
-    const timeSent = data.time;
-    const senderId = data.id;
-    const recieverId = data.recieverId;
+    const timeSent = getFormattedDate();
+    const recieverId = data.reciever_id;
+    const senderId = data.sender_id;
     const result = await this.database.sendMessage(messageText, timeSent, senderId, recieverId);
-    console.log(result);
-    connection.send(JSON.stringify(result));
+    const datetimeISO = getFormattedDateISO(timeSent);
+    const messageData = {code: result.code, success: !!result.result.affectedRows, send_time: datetimeISO, message_text: messageText, sender_id: senderId};
+    console.log(messageData);
+    connection.emit('messageToChat', JSON.stringify(messageData));
   }
 
   async getHistory(connection, data) {
+    // const socketId = connection.id;
+    // console.log('socketId', socketId);
+    // console.log('getHistory', this.connections);
+    // const senderId = this.connections[socketId];
+    // console.log('senderID', senderId);
+    // if (!senderId) {
+    //   const resultAnauthorized = {code: 401, message: 'Anauthorized'};
+    //   connection.emit('messageToChat', JSON.stringify(resultAnauthorized));
+    //   return;
+    // }
     data = JSON.parse(data);
-    const senderId = data.sender_id;
     const recieverId = data.reciever_id;
+    const senderId = data.sender_id;
     const result = await this.database.getHistory(senderId, recieverId);
+    console.log(result);
     connection.emit('history', result);
   }
 

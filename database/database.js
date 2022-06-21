@@ -25,7 +25,6 @@ class Database {
           const result = await script();
           resolve(result);
         }
-        console.log('destroy connection');
         this.con.destroy();
       });
     });
@@ -81,7 +80,6 @@ class Database {
 
   async getHistory(senderId, recieverId) {
     const params = [senderId, recieverId, senderId, recieverId];
-    console.log(params);
     const getHistorySql = `
       select * from messages 
       where sender_id in (?, ?) and reciever_id in (?, ?) 
