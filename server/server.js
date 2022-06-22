@@ -1,9 +1,21 @@
 'use strict';
 const http = require('http');
 const utils = require('../utils.js');
+const fs = require('fs');
 const getKeyByValue = utils.getKeyByValue;
 const getFormattedDate = utils.getFormattedDate;
 const getFormattedDateISO = utils.getFormattedDateISO;
+
+const mime = {
+  'html': 'text/html',
+  'js': 'text/javascript',
+  'css': 'text/css',
+  'png': 'image/png',
+  'ico': 'image/x-icon',
+  'jpeg': 'image/jpeg',
+  'json': 'text/plain',
+  'txt': 'text/plain',
+};
 
 class Server {
   constructor(port) {
@@ -13,12 +25,14 @@ class Server {
       'register': (connection, data) => this.register(connection, data), 
       'getChats': (connection) => this.handleGetChats(connection), 
       'history': (connection, data) => this.getHistory(connection, data), 
+      'avatar': (connection, data) => this.getAvatar(connection, data)
     };
 
     const server = http.createServer();
     server.listen(port, () => {
       console.log('Server running on ' + port + '...');
     });
+    server.on('request', this.handleRequest);
 
 
     // const ws = new WebSocket.Server({ server });
@@ -34,6 +48,22 @@ class Server {
     this.server = server;
     // this.ws = ws;
     this.connections = {};
+  }
+
+  //handle request in http server
+  async handleRequest(req, res) {
+    let name = req.url;
+    console.log(req.method, name);
+    const extention = name.split('.')[1];
+    const typeAns = mime[extention];
+    fs.readFile('.' + name, (err, data) => {
+      if (err) console.error('in handle request ' + err);
+      else {
+        res.writeHead(200, { 'Content-Type': `${typeAns}; charset=utf-8` });
+        res.write(data);
+      };
+      res.end();
+    });
   }
 
   setDatabase(database) {
@@ -58,6 +88,7 @@ class Server {
         this.connections[socketId] = uid;
       }
     }
+    console.log({code, uid});
     connection.emit("login", JSON.stringify({code, uid}));
   }
 
@@ -74,16 +105,31 @@ class Server {
   }
 
   async register(connection, data) {
-    const login = data.login;
-    const result = await this.database.register(login); //may add password
-    const code = result.code;
-    const resSql = result.result;
-    const uid = resSql.insertId;
+    const dataParsed = JSON.parse(data);
+    const login = dataParsed.login;
+    const loginResult = await this.database.getUserId(login);
+    let code = loginResult.code;
+    let resSql = loginResult.result;
+    let uid = null;
+    if (code != 200 || resSql.length == 0) {
+      const result = await this.database.register(login); //may add password
+      code = result.code;
+      resSql = result.result;
+      uid = resSql.insertId;
+    } else if (resSql.length > 0){
+      uid = resSql[0].id;
+    }
+
     if (code == 200 && uid) {
       const socketId = connection.id;
       this.connections[socketId] = uid;
+
+      const avatar = dataParsed.avatar;
+      fs.writeFile('./fileServer/avatars/' + uid + '.png', avatar, 'base64', function(err) {
+        console.log(err);
+      });
     }
-    connection.send(JSON.stringify(result));
+    connection.emit("login", JSON.stringify({code, uid}));
   }
 
   async handleMessageToChat(connection, jsonData) {
@@ -100,7 +146,17 @@ class Server {
     const recieverId = data.reciever_id;
     const result = await this.database.sendMessage(messageText, timeSent, senderId, recieverId);
     const datetimeISO = getFormattedDateISO(timeSent);
-    const messageData = {code: result.code, success: !!result.result.affectedRows, send_time: datetimeISO, message_text: messageText, sender_id: senderId};
+    const messageData = {
+      code: result.code,
+      success: !!result.result.affectedRows, 
+      send_time: datetimeISO, 
+      message_text: messageText, 
+      sender_id: senderId
+    };
+    
+    const senderConnectionId = getKeyByValue(this.connections, recieverId);
+    const senderConnection = this.connections[senderConnectionId];
+    if (senderConnection) senderConnection.emit('messageToChat', JSON.stringify(messageData));
     connection.emit('messageToChat', JSON.stringify(messageData));
   }
 
@@ -115,7 +171,6 @@ class Server {
     data = JSON.parse(data);
     const recieverId = data.reciever_id;
     const result = await this.database.getHistory(senderId, recieverId);
-    console.log(result);
     connection.emit('history', result);
   }
 
