@@ -24,6 +24,7 @@ class Server {
     // const ws = new WebSocket.Server({ server });
     const io = require('socket.io')(server);
     io.sockets.on('connection', socket => {
+      console.log('new connection');
       for (const handlerType in messageHandlers) {
         socket.on(handlerType, mess => messageHandlers[handlerType](socket, mess));
       }
@@ -62,7 +63,6 @@ class Server {
 
   async handleGetChats(connection) {
     const socketId = connection.id;
-    console.log('handleGetChats', this.connections);
     const uid = this.connections[socketId];
     if (!uid) {
       const resultAnauthorized = {code: 401, message: 'Anauthorized'};
@@ -70,7 +70,6 @@ class Server {
       return;
     }
     const result = await this.database.getChats(uid);
-    console.log(result);
     connection.emit("chats", JSON.stringify(result));
   }
 
@@ -88,39 +87,33 @@ class Server {
   }
 
   async handleMessageToChat(connection, jsonData) {
-    // const socketId = connection.id;
-    // const senderId = this.connections[socketId];
-    // if (!senderId) {
-    //   const resultAnauthorized = {code: 401, message: 'Anauthorized'};
-    //   connection.emit('messageToChat', JSON.stringify(resultAnauthorized));
-    //   return;
-    // }
+    const socketId = connection.id;
+    const senderId = this.connections[socketId];
+    if (!senderId) {
+      const resultAnauthorized = {code: 401, message: 'Anauthorized'};
+      connection.emit('messageToChat', JSON.stringify(resultAnauthorized));
+      return;
+    }
     const data = JSON.parse(jsonData);
     const messageText = data.text;
     const timeSent = getFormattedDate();
     const recieverId = data.reciever_id;
-    const senderId = data.sender_id;
     const result = await this.database.sendMessage(messageText, timeSent, senderId, recieverId);
     const datetimeISO = getFormattedDateISO(timeSent);
     const messageData = {code: result.code, success: !!result.result.affectedRows, send_time: datetimeISO, message_text: messageText, sender_id: senderId};
-    console.log(messageData);
     connection.emit('messageToChat', JSON.stringify(messageData));
   }
 
   async getHistory(connection, data) {
-    // const socketId = connection.id;
-    // console.log('socketId', socketId);
-    // console.log('getHistory', this.connections);
-    // const senderId = this.connections[socketId];
-    // console.log('senderID', senderId);
-    // if (!senderId) {
-    //   const resultAnauthorized = {code: 401, message: 'Anauthorized'};
-    //   connection.emit('messageToChat', JSON.stringify(resultAnauthorized));
-    //   return;
-    // }
+    const socketId = connection.id;
+    const senderId = this.connections[socketId];
+    if (!senderId) {
+      const resultAnauthorized = {code: 401, message: 'Anauthorized'};
+      connection.emit('messageToChat', JSON.stringify(resultAnauthorized));
+      return;
+    }
     data = JSON.parse(data);
     const recieverId = data.reciever_id;
-    const senderId = data.sender_id;
     const result = await this.database.getHistory(senderId, recieverId);
     console.log(result);
     connection.emit('history', result);
