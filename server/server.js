@@ -25,7 +25,8 @@ class Server {
       'register': (connection, data) => this.register(connection, data), 
       'getChats': (connection) => this.handleGetChats(connection), 
       'history': (connection, data) => this.getHistory(connection, data), 
-      'avatar': (connection, data) => this.getAvatar(connection, data)
+      'avatar': (connection, data) => this.getAvatar(connection, data),
+      'uid': (connection, data) => this.getUidByName(connection, data)
     };
 
     const server = http.createServer();
@@ -90,6 +91,18 @@ class Server {
     }
     console.log({code, uid});
     connection.emit("login", JSON.stringify({code, uid}));
+  }
+
+  async getUidByName(connection, name) {
+    const result = await this.database.getUserId(name);
+    let uid = null;
+    let code = 404;
+    const resSql = result.result;
+    if (resSql.length > 0) {
+      uid = resSql[0].id;
+      code = 200;
+    }
+    connection.emit("uid", JSON.stringify({code, uid, name}));
   }
 
   async handleGetChats(connection) {
@@ -171,6 +184,7 @@ class Server {
     data = JSON.parse(data);
     const recieverId = data.reciever_id;
     const result = await this.database.getHistory(senderId, recieverId);
+    console.log(result);
     connection.emit('history', result);
   }
 

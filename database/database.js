@@ -97,9 +97,6 @@ class Database {
     return await this.handleQuery(insertMessageSql, params);
   }
 
-
-
-
 }
 
 module.exports.Database = Database;
