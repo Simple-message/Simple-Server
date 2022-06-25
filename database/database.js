@@ -34,10 +34,10 @@ class Database {
     return await this.handleDbConnection(async () => {
       try {
         const result = await this.exec(sql, params);
-        return {code: 200, result};
+        return { code: 200, result };
       } catch (err) {
         console.error(err);
-        return {code: 500, result: null};
+        return { code: 500, result: null };
       }
     });
   }

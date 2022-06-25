@@ -1,3 +1,4 @@
+'use strict';
 const Server = require('./server/server.js').Server;
 const Database = require('./database/database.js').Database;
 const databaseConfig = require('./config.js').databaseConfig;

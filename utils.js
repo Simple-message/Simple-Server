@@ -6,7 +6,13 @@ function getKeyByValue(object, value) {
 
 function getFormattedDate() {
   const date = new Date();
-  const dateStr = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " +  date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+  const dateStr =
+    date.getFullYear() + '-' +
+    (date.getMonth() + 1) + '-' +
+    date.getDate() + ' ' +
+    date.getHours() + ':' +
+    date.getMinutes() + ':' +
+    date.getSeconds();
 
   return dateStr;
 }
@@ -15,4 +21,4 @@ function getFormattedDateISO(dateStr) {
   return new Date(dateStr).toISOString();
 }
 
-module.exports = { getKeyByValue, getFormattedDate, getFormattedDateISO};
+module.exports = { getKeyByValue, getFormattedDate, getFormattedDateISO };
