@@ -17,6 +17,7 @@ For simplicity, every login/name is unique, therefore there can not be two users
 ### Simple-Server project
 Backend is written in nodejs and with the help of websockets, more precisely with [socket.io](https://github.com/socketio/socket.io), which was chosen for the simplicity and ease of usage for connecting app and server. Transfer of data over the Hyper Text Transfer Protocol is being performed by a built-in nodejs module http (is being used, when loading avatars from backend).  
 The main file - index.js - includes class **Server**, which handles every function, and message from server. We also use class **Database**, which helps handling database functions and stores them in a comfortable way to use. We use mysql for database anf [mysql](https://github.com/mysqljs/mysql) for saving data.
+We also use **File Server to store images** (and in future other type of data).
 ## Todos:
 * write tests;  
 * add new methods for hadling not implemented socket events.
