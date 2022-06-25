@@ -23,6 +23,7 @@ We also use **File Server to store images** (and in future other type of data).
 * add new methods for hadling not implemented socket events.
 ## Author
 [Gorbunova Yelyzaveta](https://github.com/lizardlynx)  
+[Maksym Marchenko](https://github.com/kertnique)
 ## License
 MIT © [simple-server](https://github.com/Simple-message/Simple-Server)
 
